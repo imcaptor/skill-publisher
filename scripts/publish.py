@@ -283,6 +283,11 @@ def build(config_path):
         settings = platforms['skillhub']
         payload = skillhub_metadata(metadata, settings)
         hub_files = dict(files)
+        if license_path and not Path(license_path).suffix:
+            hub_license_path = license_path + '.md'
+            if hub_license_path in hub_files and hub_files[hub_license_path] != hub_files[license_path]:
+                raise PublishError('SkillHub license filename conflicts with existing file: ' + hub_license_path)
+            hub_files[hub_license_path] = hub_files.pop(license_path)
         hub_files['SKILL.md'] = replace_frontmatter(files['SKILL.md'], {key: value for key, value in payload.items() if key != 'changelog'})
         assets['skillhub.zip'] = make_zip(hub_files)
         assets['skillhub-submission.json'] = json_bytes(payload)

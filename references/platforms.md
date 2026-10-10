@@ -38,4 +38,6 @@ WorkBuddy 已接入 SkillHub 市场，支持浏览、搜索和安装社区技能
 
 配置中的 SkillHub license 必须由用户明确指定，且源技能同时具有已配置的许可证文件。上传仅从校验后的 skillhub.zip 读取，不读源项目。API 回执 skillId、status、publicUrl 保存到 status。pending_review 记录为 submitted；只有明确的 published 回执才记录为 published。
 
+SkillHub 不接受无扩展名文件；打包时会将配置的无扩展名许可证在 SkillHub 包内改名为原名加 `.md`（例如 `LICENSE.md`），保留原始内容，源文件及其他平台发行包不变。目标文件已存在且内容不同时会拒绝打包。
+
 此 API 没有本项目已验证可用的同版本远端核对接口。因此 POST 前持久化 submitting，网络失败或不完整响应记 uncertain，禁止盲目重试。同版本已有 receipt 也不会再提交。到门户核实实际结果后可用 record 写 submitted/published 证据；若需要更改内容，增加版本重新构建。
