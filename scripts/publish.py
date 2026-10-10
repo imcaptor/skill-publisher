@@ -579,8 +579,10 @@ def publish(release, platforms=None, execute=False):
     with lock(release):
         manifest = verify_release(release)
         selected = platforms or list(manifest['platforms'])
-        if set(selected) - set(PLATFORMS):
+        if (set(manifest['platforms']) | set(selected)) - set(PLATFORMS):
             raise PublishError('Unknown publication platform')
+        if {'workbuddy.zip', 'workbuddy-submission.json'} & set(manifest['artifacts']):
+            raise PublishError('WorkBuddy artifacts cannot be published; build a new release')
         if not selected or set(selected) - set(manifest['platforms']):
             raise PublishError('Select platforms enabled in this release')
         if execute and not manifest.get('license'):
