@@ -1,0 +1,6 @@
+/dist/
+publish.local.json
+__pycache__/
+*.pyc
+.audit/
+todo.md

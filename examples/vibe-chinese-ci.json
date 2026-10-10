@@ -1,0 +1,32 @@
+{
+  "source": "../your-vibe-chinese-ci",
+  "output": "../dist",
+  "metadata": {
+    "name": "vibe-chinese-ci",
+    "version": "0.1.1",
+    "description": "Assist Chinese ci poetry composition and verify its metrical rules.",
+    "description_zh": "辅助中文填词，校验词牌、平仄、押韵并保存创作版本。",
+    "description_en": "Assist Chinese ci poetry composition and verify its metrical rules.",
+    "author": "wanghongbao"
+  },
+  "license": null,
+  "include": [
+    "SKILL.md",
+    "scripts/**",
+    "references/**",
+    "README.md",
+    "LICENSE"
+  ],
+  "exclude": [
+    "references/process-log.md"
+  ],
+  "platforms": {
+    "github": {},
+    "gitee": {},
+    "workbuddy": {},
+    "qianwen": {},
+    "skillhub": {
+      "license": ""
+    }
+  }
+}

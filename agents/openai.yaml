@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skill Publisher"
+  short_description: "统一打包技能并发布到 GitHub、Gitee，辅助市场提交"
+  default_prompt: "用 $skill-publisher 为我的技能准备多平台发行包并预览发布计划。"
