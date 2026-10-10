@@ -1,6 +1,6 @@
 # Skill Publisher
 
-把一个 Agent Skill 打包成GitHub、Gitee、WorkBuddy、千问的发行资料，并支持腾讯 SkillHub 社区提交。GitHub、Gitee 支持通过真实 Release 接口上传与核对附件。WorkBuddy、千问支持生成技能包、资料与辅助提交步骤，审核结果需人工确认。SkillHub 社区有独立的自动提交 API，返回 pending_review 时记为 submitted，不能当作 WorkBuddy 官方市场已上架。
+把一个 Agent Skill 打包成 GitHub、Gitee、千问和腾讯 SkillHub 社区的发行资料。GitHub、Gitee 支持通过 Release 接口上传与核对附件。千问支持生成技能包、资料与辅助提交步骤，审核结果需人工确认。SkillHub 通过社区 API 提交并记录审核回执。
 
 项目独立运行，不改原技能，不推原项目的 Git 历史。作品归档永远排除。Python 3.9+，基础使用只需要标准库；复杂 YAML frontmatter 使用本机可选的 PyYAML 校验，没有它时只接受平面标量及 JSON 字段。GitHub 发布需要安装 gh。
 
@@ -22,16 +22,16 @@ python3 scripts/publish.py status --release dist/your-skill/0.1.0
 
 ```bash
 python3 scripts/publish.py publish --release dist/your-skill/0.1.0 --platform github --execute
-python3 scripts/publish.py record --release dist/your-skill/0.1.0 --platform workbuddy --state submitted --url https://open.workbuddy.cn/ --evidence '控制台显示审核已提交，2026-10-10'
+python3 scripts/publish.py record --release dist/your-skill/0.1.0 --platform qianwen --state submitted --url https://www.qianwenai.com/hub/skills --evidence '控制台显示审核已提交，2026-10-10'
 ```
 
-环境认证使用 `gh auth login` / `GH_TOKEN`、`GITEE_TOKEN`、`SKILLHUB_TOKEN`。可选私有文件 `~/.config/skill-publisher/credentials.json` 仅读取 GH_TOKEN、GITHUB_TOKEN、GITEE_TOKEN、SKILLHUB_TOKEN、SKILLHUB_API_KEY，文件权限必须为 0600，环境变量优先。不要把凭证写进配置。WorkBuddy 和千问仍需登录官方门户完成提交；本工具不会把 prepared 冒充 published。
+环境认证使用 `gh auth login` / `GH_TOKEN`、`GITEE_TOKEN`、`SKILLHUB_TOKEN`。可选私有文件 `~/.config/skill-publisher/credentials.json` 仅读取 GH_TOKEN、GITHUB_TOKEN、GITEE_TOKEN、SKILLHUB_TOKEN、SKILLHUB_API_KEY，文件权限必须为 0600，环境变量优先。不要把凭证写进配置。千问需登录官方门户完成提交；本工具不会把 prepared 冒充 published。
 
 ## 作为 Skill 安装
 
 把这个项目复制或链接到你的 Agent Skills 发现目录，例如 `~/.codex/skills/skill-publisher`。也可直接让助手读取本项目的 SKILL.md。
 
-自然语言请求示例：“用 skill-publisher 为我的技能准备 GitHub、Gitee、WorkBuddy 和千问发行包，先预览，排除作品。”或：“把准备好的 0.2.0 发行版发布到我配置的 GitHub 和 Gitee 仓库，并辅助提交两个技能市场。”
+自然语言请求示例：“用 skill-publisher 为我的技能准备 GitHub、Gitee、SkillHub 和千问发行包，先预览，排除作品。”或：“把准备好的 0.2.0 发行版发布到我配置的 GitHub 和 Gitee 仓库，并辅助提交两个技能市场。”
 
 配置详情见 [references/config.md](references/config.md)，平台能力与官方资料见 [references/platforms.md](references/platforms.md)。
 

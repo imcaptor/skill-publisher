@@ -17,8 +17,8 @@ import urllib.request
 import zipfile
 from contextlib import contextmanager
 
-PLATFORMS = ('github', 'gitee', 'workbuddy', 'qianwen', 'skillhub')
-PORTALS = {'workbuddy': 'https://open.workbuddy.cn/', 'qianwen': 'https://www.qianwenai.com/hub/skills'}
+PLATFORMS = ('github', 'gitee', 'qianwen', 'skillhub')
+PORTALS = {'qianwen': 'https://www.qianwenai.com/hub/skills'}
 
 class PublishError(Exception):
     pass
@@ -276,9 +276,7 @@ def build(config_path):
             raise PublishError('Configured license must be a nonempty allowlisted file')
     platforms = public_platforms(config)
     common = make_zip(files)
-    work_files = dict(files)
-    work_files['SKILL.md'] = replace_frontmatter(files['SKILL.md'], metadata)
-    assets = {'skill.zip': common, 'source.zip': common, 'workbuddy.zip': make_zip(work_files, metadata['name'] + '/'), 'qianwen.zip': common}
+    assets = {'skill.zip': common, 'source.zip': common, 'qianwen.zip': common}
     if 'skillhub' in platforms:
         settings = platforms['skillhub']
         payload = skillhub_metadata(metadata, settings)
@@ -293,7 +291,7 @@ def build(config_path):
         assets['skillhub-submission.json'] = json_bytes(payload)
     if len(common) > 10 * 1024 * 1024:
         raise PublishError('Qianwen ZIP exceeds conservative 10 MiB limit')
-    for platform in ('workbuddy', 'qianwen'):
+    for platform in PORTALS:
         assets[platform + '-submission.json'] = json_bytes({'platform': platform, 'metadata': metadata, 'portal': PORTALS[platform], 'package': platform + '.zip', 'steps': ['Sign in and complete required account verification.', 'Create a skill and upload this ZIP.', 'Fill metadata and test in the platform.', 'Submit for review; record submitted or published with evidence.'], 'capability': 'assisted'})
     manifest = {'schema': 1, 'metadata': metadata, 'license': license_path, 'platforms': platforms, 'files': {name: digest(content) for name, content in sorted(files.items())}, 'artifacts': {name: digest(content) for name, content in sorted(assets.items())}}
     encoded = json_bytes(manifest)
@@ -581,6 +579,8 @@ def publish(release, platforms=None, execute=False):
     with lock(release):
         manifest = verify_release(release)
         selected = platforms or list(manifest['platforms'])
+        if set(selected) - set(PLATFORMS):
+            raise PublishError('Unknown publication platform')
         if not selected or set(selected) - set(manifest['platforms']):
             raise PublishError('Select platforms enabled in this release')
         if execute and not manifest.get('license'):

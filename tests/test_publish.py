@@ -44,7 +44,7 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         return Path(json.loads(result.stdout))
 
-    def test_archive_secrets_nested_glob_deterministic_and_workbuddy(self):
+    def test_archive_secrets_nested_glob_deterministic(self):
         names = ['archives/poem.md', 'references/archives/poem.md', 'scripts/.env.local', '.git/config', 'references/private.key', 'credentials/password.txt', 'references/process-log.md', 'scripts/nested/run.py', 'references/guide.md', 'readme.txt']
         for name in names:
             path = self.source / name
@@ -57,15 +57,36 @@ class ReleaseTests(unittest.TestCase):
         for name in ('skill.zip', 'source.zip', 'qianwen.zip'):
             with zipfile.ZipFile(release / name) as z:
                 self.assertEqual(set(z.namelist()), allowed)
-        with zipfile.ZipFile(release / 'workbuddy.zip') as z:
-            self.assertEqual(set(z.namelist()), {'demo/' + name for name in allowed})
-            front = z.read('demo/SKILL.md').decode()
-            self.assertIn('description_zh: "测试"', front)
-            self.assertIn('version: "1.0.0"', front)
         before = (release / 'skill.zip').read_bytes()
         self.assertEqual(self.build(), release)
         self.assertEqual(before, (release / 'skill.zip').read_bytes())
         self.assertNotIn(str(self.root), (release / 'manifest.json').read_text())
+
+    def test_four_channels_and_removed_platform_refused(self):
+        expected = {'github', 'gitee', 'qianwen', 'skillhub'}
+        initial = self.root / 'initial.json'
+        self.assertEqual(self.cli('init', '--config', str(initial)).returncode, 0)
+        self.assertEqual(set(p.read_json(initial)['platforms']), expected)
+        release = self.build()
+        manifest = p.verify_release(release)
+        self.assertEqual(set(manifest['platforms']), expected)
+        self.assertFalse(any('workbuddy' in path.name for path in release.iterdir()))
+        self.assertEqual({entry['platform'] for entry in p.publish(release)}, expected)
+        self.assertNotEqual(self.cli('publish', '--release', str(release), '--platform', 'workbuddy').returncode, 0)
+        self.assertNotEqual(self.cli('record', '--release', str(release), '--platform', 'workbuddy', '--state', 'submitted', '--url', 'https://example.com/', '--evidence', 'fixture').returncode, 0)
+        self.data['platforms']['workbuddy'] = {'enabled': False}
+        self.save()
+        rejected = self.cli('build', '--config', str(self.config))
+        self.assertNotEqual(rejected.returncode, 0)
+        self.assertIn('Unknown platform configuration', rejected.stderr)
+        manifest['platforms']['workbuddy'] = {}
+        raw = p.json_bytes(manifest)
+        (release / 'manifest.json').write_bytes(raw)
+        (release / 'manifest.sha256').write_text(p.digest(raw) + '\n')
+        with self.assertRaisesRegex(p.PublishError, 'Unknown publication platform'):
+            p.publish(release, ['workbuddy'], True)
+        with self.assertRaisesRegex(p.PublishError, 'Unknown publication platform'):
+            p.publish(release, execute=True)
 
     def test_same_version_change_refused(self):
         self.build()
@@ -89,11 +110,10 @@ class ReleaseTests(unittest.TestCase):
                 with zipfile.ZipFile(release / 'skillhub.zip') as archive:
                     self.assertNotIn(license_name, archive.namelist())
                     self.assertEqual(archive.read(license_name + '.md'), content)
-                for package in ('skill.zip', 'source.zip', 'qianwen.zip', 'workbuddy.zip'):
+                for package in ('skill.zip', 'source.zip', 'qianwen.zip'):
                     with zipfile.ZipFile(release / package) as archive:
-                        prefix = 'demo/' if package == 'workbuddy.zip' else ''
-                        self.assertEqual(archive.read(prefix + license_name), content)
-                        self.assertNotIn(prefix + license_name + '.md', archive.namelist())
+                        self.assertEqual(archive.read(license_name), content)
+                        self.assertNotIn(license_name + '.md', archive.namelist())
                 manifest = p.verify_release(release)
                 self.assertEqual(set(manifest['files']), set(before))
                 self.assertEqual(manifest['license'], license_name)
@@ -134,11 +154,11 @@ class ReleaseTests(unittest.TestCase):
         result = self.cli('publish', '--release', str(release))
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue(all(not entry['execute'] for entry in json.loads(result.stdout)))
-        self.assertEqual(p.publish(release, ['workbuddy'], True)[0]['mode'], 'assisted')
-        self.assertEqual(p.read_json(release / 'status.json')['platforms']['workbuddy']['state'], 'prepared')
-        self.assertEqual(p.record(release, 'workbuddy', 'submitted', 'https://open.workbuddy.cn/', 'Console confirms submission')['platforms']['workbuddy']['state'], 'submitted')
-        p.publish(release, ['workbuddy'], True)
-        self.assertEqual(p.read_json(release / 'status.json')['platforms']['workbuddy']['state'], 'submitted')
+        self.assertEqual(p.publish(release, ['qianwen'], True)[0]['mode'], 'assisted')
+        self.assertEqual(p.read_json(release / 'status.json')['platforms']['qianwen']['state'], 'prepared')
+        self.assertEqual(p.record(release, 'qianwen', 'submitted', 'https://www.qianwenai.com/hub/skills', 'Console confirms submission')['platforms']['qianwen']['state'], 'submitted')
+        p.publish(release, ['qianwen'], True)
+        self.assertEqual(p.read_json(release / 'status.json')['platforms']['qianwen']['state'], 'submitted')
 
     def test_tamper_submission_or_manifest_refused(self):
         release = self.build()
@@ -202,10 +222,10 @@ class ReleaseTests(unittest.TestCase):
             p.atomic_json(release / 'status.json', status)
             with patch.object(p, 'credentials_env', return_value={'SKILLHUB_TOKEN': 'skh_fixture'}), patch.object(p.SkillHub, 'authenticate'), patch.object(p.SkillHub, 'submit', return_value=response):
                 with self.assertRaises(p.PublishError):
-                    p.publish(release, ['skillhub', 'workbuddy'], True)
+                    p.publish(release, ['skillhub', 'qianwen'], True)
             status = p.read_json(release / 'status.json')['platforms']
             self.assertEqual(status['skillhub']['state'], 'uncertain')
-            self.assertEqual(status['workbuddy']['portal'], p.PORTALS['workbuddy'])
+            self.assertEqual(status['qianwen']['portal'], p.PORTALS['qianwen'])
             with patch.object(p.SkillHub, 'request', return_value=response):
                 with self.assertRaises(p.PublishError):
                     p.SkillHub('skh_fixture').authenticate()
@@ -263,19 +283,19 @@ class ReleaseTests(unittest.TestCase):
                 p.atomic_json(release / 'status.json', status)
                 with patch.object(p, 'credentials_env', return_value={'SKILLHUB_TOKEN': 'skh_fixture'}), patch.object(p.SkillHub, 'authenticate'), patch.object(p.SkillHub, 'submit', return_value=response):
                     with self.assertRaises(p.PublishError):
-                        p.publish(release, ['skillhub', 'workbuddy'], True)
+                        p.publish(release, ['skillhub', 'qianwen'], True)
                 status = p.read_json(release / 'status.json')['platforms']
                 self.assertEqual(status['skillhub']['state'], 'uncertain')
-                self.assertEqual(status['workbuddy']['state'], 'prepared')
+                self.assertEqual(status['qianwen']['state'], 'prepared')
 
     def test_channels_continue_after_failure(self):
         release = self.build()
         with patch.object(p, 'publish_github', side_effect=p.PublishError('failed')):
             with self.assertRaises(p.PublishError):
-                p.publish(release, ['github', 'workbuddy'], True)
+                p.publish(release, ['github', 'qianwen'], True)
         status = p.read_json(release / 'status.json')['platforms']
         self.assertEqual(status['github']['state'], 'failed')
-        self.assertEqual(status['workbuddy']['portal'], p.PORTALS['workbuddy'])
+        self.assertEqual(status['qianwen']['portal'], p.PORTALS['qianwen'])
 
     def test_skillhub_http_pending_receipt_and_uncertain_guard(self):
         self.data['platforms']['skillhub'] = {'license': 'MIT'}
@@ -319,7 +339,7 @@ class ReleaseTests(unittest.TestCase):
                 p.atomic_json(release / 'status.json', status_all)
                 with patch.object(client, 'submit', side_effect=p.PublishError('timeout')):
                     with self.assertRaises(p.PublishError):
-                        p.publish(release, ['skillhub', 'workbuddy'], True)
+                        p.publish(release, ['skillhub', 'qianwen'], True)
                 self.assertEqual(p.read_json(release / 'status.json')['platforms']['skillhub']['state'], 'uncertain')
                 with self.assertRaises(p.PublishError):
                     p.publish(release, ['skillhub'], True)
