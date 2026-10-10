@@ -227,6 +227,18 @@ class ReleaseTests(unittest.TestCase):
                 p.publish(release, ['skillhub'], True)
             self.assertEqual(submit.call_count, 1)
 
+    def test_skillhub_explicit_legacy_published_receipt(self):
+        self.data['platforms']['skillhub'] = {'license': 'MIT'}
+        self.save()
+        release = self.build()
+        response = {'skillId': 'fixture-skill', 'status': 'published',
+                    'publicUrl': 'https://skillhub.cn/skills/demo'}
+        with patch.object(p, 'credentials_env', return_value={'SKILLHUB_TOKEN': 'skh_fixture'}), patch.object(p.SkillHub, 'authenticate'), patch.object(p.SkillHub, 'submit', return_value=response):
+            p.publish(release, ['skillhub'], True)
+        status = p.read_json(release / 'status.json')['platforms']['skillhub']
+        self.assertEqual(status['state'], 'published')
+        self.assertEqual(status['receipt'], response)
+
     def test_skillhub_incomplete_or_rejected_receipts_remain_uncertain(self):
         self.data['platforms']['skillhub'] = {'license': 'MIT'}
         self.save()

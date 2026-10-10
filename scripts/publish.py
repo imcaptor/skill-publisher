@@ -548,10 +548,27 @@ def publish_skillhub(release, manifest, status):
     atomic_json(release / 'status.json', status)
     try:
         result = client.submit(payload, files)
-        if not isinstance(result, dict) or not result.get('skillId') or not isinstance(result.get('status'), str):
+        if not isinstance(result, dict):
             raise PublishError('SkillHub submission response is incomplete')
-        receipt = {key: result[key] for key in ('skillId', 'status', 'publicUrl') if key in result}
-        status['platforms']['skillhub'] = {'state': 'published' if result['status'] == 'published' else 'submitted', 'receipt': receipt, 'remote_status': result['status']}
+        skill_id = result.get('skillId')
+        if not ((isinstance(skill_id, str) and skill_id.strip()) or (type(skill_id) is int and skill_id > 0)):
+            raise PublishError('SkillHub submission response has no valid skill ID')
+        if 'ok' in result and result['ok'] is not True:
+            raise PublishError('SkillHub submission response does not confirm acceptance')
+        stages = ('reviewStatus', 'securityScanStatus', 'contentAuditStatus', 'iconAuditStatus', 'iconAuditTaskStatus')
+        for key in ('status', 'publicUrl') + stages:
+            if key in result and (not isinstance(result[key], str) or not result[key].strip()):
+                raise PublishError('SkillHub submission response has an invalid status field')
+        if 'status' in result:
+            remote_status = result['status']
+            state = 'published' if remote_status == 'published' else 'submitted'
+        elif result.get('ok') is True and 'reviewStatus' in result:
+            remote_status = result['reviewStatus']
+            state = 'submitted'
+        else:
+            raise PublishError('SkillHub submission response is incomplete')
+        receipt = {key: result[key] for key in ('skillId', 'status', 'publicUrl', 'ok') + stages if key in result}
+        status['platforms']['skillhub'] = {'state': state, 'receipt': receipt, 'remote_status': remote_status}
         atomic_json(release / 'status.json', status)
         return receipt
     except (PublishError, OSError, ValueError, KeyError):

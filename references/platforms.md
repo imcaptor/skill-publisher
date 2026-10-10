@@ -36,7 +36,7 @@ WorkBuddy 已接入 SkillHub 市场，支持浏览、搜索和安装社区技能
 
 设置 SKILLHUB_TOKEN 或 SKILLHUB_API_KEY，值使用 skh_ 前缀。先 GET `https://api.skillhub.cn/api/v1/auth/me` 验证账号，再 POST `/api/v1/community/skills/publish`。Authorization 使用 Bearer。请求包含 payload JSON，以及多个重复的 files 字段，每个文件的 filename 是相对路径；不是直接上传一个 ZIP。
 
-配置中的 SkillHub license 必须由用户明确指定，且源技能同时具有已配置的许可证文件。上传仅从校验后的 skillhub.zip 读取，不读源项目。API 回执 skillId、status、publicUrl 保存到 status。pending_review 记录为 submitted；只有明确的 published 回执才记录为 published。
+配置中的 SkillHub license 必须由用户明确指定，且源技能同时具有已配置的许可证文件。上传仅从校验后的 skillhub.zip 读取，不读源项目。API 回执保留 skillId 及返回的审核阶段字段；兼容旧版 status/publicUrl 和新版 ok/reviewStatus。新版明确接受的回执保守记录为 submitted；只有旧版明确的 status=published 回执才记录为 published，审核阶段完成不代表公开上架。
 
 SkillHub 不接受无扩展名文件；打包时会将配置的无扩展名许可证在 SkillHub 包内改名为原名加 `.md`（例如 `LICENSE.md`），保留原始内容，源文件及其他平台发行包不变。目标文件已存在且内容不同时会拒绝打包。
 
