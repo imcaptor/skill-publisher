@@ -32,7 +32,7 @@ CLI 查询远端所有 Release，找到版本标签后逐个下载同名资产�
 
 ## 腾讯 SkillHub 社区
 
-这是 WorkBuddy 开放平台之外的社区渠道，不代表自动进入 WorkBuddy 官方市场。入口：[SkillHub](https://skillhub.cn/)，[官方 CLI 发布教程](https://skillhub.cn/tutorials#publish-via-cli)，[Agent 发布规范](https://skillhub.cn/ai/release.md)。接口契约也核对了官方安装包中的 CLI 源码。
+WorkBuddy 已接入 SkillHub 市场，支持浏览、搜索和安装社区技能，见[官方更新日志](https://www.workbuddy.cn/docs/workbuddy/Changelog)。SkillHub 社区发布与 WorkBuddy 开放平台的独立审核入口分别记录，社区上架不代表已经通过开放平台审核。入口：[SkillHub](https://skillhub.cn/)，[官方 CLI 发布教程](https://skillhub.cn/tutorials#publish-via-cli)，[Agent 发布规范](https://skillhub.cn/ai/release.md)。接口契约也核对了官方安装包中的 CLI 源码。
 
 设置 SKILLHUB_TOKEN 或 SKILLHUB_API_KEY，值使用 skh_ 前缀。先 GET `https://api.skillhub.cn/api/v1/auth/me` 验证账号，再 POST `/api/v1/community/skills/publish`。Authorization 使用 Bearer。请求包含 payload JSON，以及多个重复的 files 字段，每个文件的 filename 是相对路径；不是直接上传一个 ZIP。
 

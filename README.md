@@ -16,7 +16,7 @@ python3 scripts/publish.py publish --release dist/your-skill/0.1.0 --execute
 python3 scripts/publish.py status --release dist/your-skill/0.1.0
 ```
 
-配置中的路径相对于配置文件。`examples/vibe-chinese-ci.json` 是可移植的词作技能示例，source 需要编辑。`publish.local.json` 是本机私有配置，不纳入 Git，当前源技能没有 LICENSE，因此先准备草稿。请自行确认脚本、词谱、韵书等资料的版权与再分发许可，再增加源许可证。这里的 MIT 仅适用于 Skill Publisher 项目。
+配置中的路径相对于配置文件。`examples/vibe-chinese-ci.json` 是可移植的词作技能示例，source 需要编辑。`publish.local.json` 是本机私有配置，不纳入 Git。公开示例保留草稿配置，使用时应为自己的技能明确指定许可证。Skill Publisher 自身的 MIT 许可证不替代源技能的许可证。
 
 发行目录包含通用技能 ZIP、各平台技能 ZIP、白名单源码 ZIP、市场提交资料、校验清单和平台状态。同版本内容必须一致。许可证补齐后应增加版本并重建，不能直接编辑已经生成的 manifest。发布前下载远端已有附件核对，失败后可重试补齐，不覆盖不同内容的同名附件。发布不读取源目录，已经打包的版本可单独搬运。不会自动同步仓库默认分支中的源码。
 
