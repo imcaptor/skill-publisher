@@ -7,6 +7,8 @@ Use `scripts/publish.py` with Python 3.9 or newer. Resolve this script relative 
 
 Read [configuration](references/config.md) to prepare a source profile. Read [platform instructions](references/platforms.md) for the selected destinations. Keep account credentials in environment variables or the GitHub CLI login.
 
+Choose a distinctive marketplace identifier, such as the project's pinyin name, instead of a generic word such as `poetry`. Check any matching listing's owner and version before reusing an identifier. Use the full `@namespace/slug` in installation instructions and links. Verify the live description and downloaded SKILL.md against the uploaded package; a matching display name alone is insufficient. Identity changes belong in publication metadata and staging copies unless the user requests a source rename.
+
 1. Create or inspect a profile. Confirm the source skill, version, public metadata, license, repository destinations and included files. Work archives never belong in release packages.
 2. Run `build --config PROFILE`. Inspect `manifest.json`, package contents and generated submission JSON. The source allowlist is the only source of release files. Never push the source project's existing Git history.
 3. Run `publish --release RELEASE` for a preview. Use `--platform NAME` to select a subset. The release works independently of its source directory after building.
