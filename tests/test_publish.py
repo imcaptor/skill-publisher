@@ -88,6 +88,30 @@ class ReleaseTests(unittest.TestCase):
         with self.assertRaisesRegex(p.PublishError, 'Unknown publication platform'):
             p.publish(release, execute=True)
 
+    def test_legacy_workbuddy_release_refused_before_github_publication(self):
+        release = self.build()
+        original = p.verify_release(release)
+        for platform, artifact in (('workbuddy', 'workbuddy.zip'), (None, 'workbuddy.zip'), (None, 'workbuddy-submission.json'), ('unknown', None)):
+            with self.subTest(platform=platform, artifact=artifact):
+                manifest = json.loads(json.dumps(original))
+                if platform:
+                    manifest['platforms'][platform] = {}
+                if artifact:
+                    content = b'Legacy WorkBuddy artifact'
+                    (release / artifact).write_bytes(content)
+                    manifest['artifacts'][artifact] = p.digest(content)
+                raw = p.json_bytes(manifest)
+                (release / 'manifest.json').write_bytes(raw)
+                (release / 'manifest.sha256').write_text(p.digest(raw) + '\n')
+                before = (release / 'status.json').read_bytes()
+                self.assertEqual(p.verify_release(release), manifest)
+                with patch.object(p, 'publish_github', return_value='https://example.com/release') as remote:
+                    with self.assertRaises(p.PublishError):
+                        p.publish(release, ['github'], True)
+                    remote.assert_not_called()
+                self.assertEqual((release / 'status.json').read_bytes(), before)
+                self.assertEqual(self.cli('status', '--release', str(release)).returncode, 0)
+
     def test_same_version_change_refused(self):
         self.build()
         (self.source / 'SKILL.md').write_text((self.source / 'SKILL.md').read_text() + 'Changed body.\n')
