@@ -2,7 +2,7 @@
 
 把一个 Agent Skill 打包成GitHub、Gitee、WorkBuddy、千问的发行资料，并支持腾讯 SkillHub 社区提交。GitHub、Gitee 支持通过真实 Release 接口上传与核对附件。WorkBuddy、千问支持生成技能包、资料与辅助提交步骤，审核结果需人工确认。SkillHub 社区有独立的自动提交 API，返回 pending_review 时记为 submitted，不能当作 WorkBuddy 官方市场已上架。
 
-项目独立运行，不改原技能，不推原项目的 Git 历史。作品归档永远排除。Python 3.9+，无第三方 Python 依赖；GitHub 发布需要安装 gh。
+项目独立运行，不改原技能，不推原项目的 Git 历史。作品归档永远排除。Python 3.9+，基础使用只需要标准库；复杂 YAML frontmatter 使用本机可选的 PyYAML 校验，没有它时只接受平面标量及 JSON 字段。GitHub 发布需要安装 gh。
 
 ## 使用
 
@@ -18,7 +18,7 @@ python3 scripts/publish.py status --release dist/your-skill/0.1.0
 
 配置中的路径相对于配置文件。`examples/vibe-chinese-ci.json` 是可移植的词作技能示例，source 需要编辑。`publish.local.json` 是本机私有配置，不纳入 Git，当前源技能没有 LICENSE，因此先准备草稿。请自行确认脚本、词谱、韵书等资料的版权与再分发许可，再增加源许可证。这里的 MIT 仅适用于 Skill Publisher 项目。
 
-发行目录包含三种技能 ZIP、白名单源码 ZIP、市场提交资料、校验清单和平台状态。同版本内容必须一致。许可证补齐后应增加版本并重建，不能直接编辑已经生成的 manifest。发布前下载远端已有附件核对，失败后可重试补齐，不覆盖不同内容的同名附件。发布不读取源目录，已经打包的版本可单独搬运。不会自动同步仓库默认分支中的源码。
+发行目录包含通用技能 ZIP、各平台技能 ZIP、白名单源码 ZIP、市场提交资料、校验清单和平台状态。同版本内容必须一致。许可证补齐后应增加版本并重建，不能直接编辑已经生成的 manifest。发布前下载远端已有附件核对，失败后可重试补齐，不覆盖不同内容的同名附件。发布不读取源目录，已经打包的版本可单独搬运。不会自动同步仓库默认分支中的源码。
 
 ```bash
 python3 scripts/publish.py publish --release dist/your-skill/0.1.0 --platform github --execute

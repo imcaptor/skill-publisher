@@ -1,6 +1,6 @@
 # 配置与产物
 
-Python 3.9+，只使用标准库。配置是 JSON。所有 source 和 output 路径相对于配置文件目录解析。
+Python 3.9+，基础打包和接口只使用标准库。配置是 JSON。所有 source 和 output 路径相对于配置文件目录解析。若有 PyYAML，会校验整个 YAML frontmatter；没有它时只接受平面字段，值为标量或合法 JSON。缩进、块标量等复杂 YAML 需要安装 PyYAML，不能跳过校验。
 
 | 字段 | 含义 |
 | --- | --- |

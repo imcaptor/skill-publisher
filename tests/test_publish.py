@@ -131,6 +131,44 @@ class ReleaseTests(unittest.TestCase):
         self.assertTrue(p.matches('scripts/a/b/run.py', 'scripts/**/run.py'))
         self.assertFalse(p.matches('scripts/a/b/run.py', 'scripts/*.py'))
 
+    def test_invalid_yaml_and_no_dependency_fallback(self):
+        for content in (
+            '---\nname: demo\ndescription: Demo: broken YAML\n---\n',
+            '---\nname: demo\ndescription: Demo\nmetadata: [broken\n---\n',
+            '---\nname: demo\ndescription: true\n---\n',
+        ):
+            (self.source / 'SKILL.md').write_text(content)
+            self.assertNotEqual(self.cli('build', '--config', str(self.config)).returncode, 0)
+            with patch.dict(sys.modules, {'yaml': None}):
+                with self.assertRaises(p.PublishError):
+                    p.validate_skill(content.encode(), 'demo')
+        with patch.dict(sys.modules, {'yaml': None}):
+            p.validate_skill(b'---\nname: demo\ndescription: "Demo"\ntags: ["writing"]\n---\n', 'demo')
+            for scalar in ('yes', 'True', 'OFF', '42', '1.2', '2026-10-10', '-3', '.inf', '# only a comment', '- list item', '? mapping key', '] broken', ', broken'):
+                content = ('---\nname: demo\ndescription: ' + scalar + '\n---\n').encode()
+                with self.assertRaises(p.PublishError):
+                    p.validate_skill(content, 'demo')
+                quoted = ('---\nname: demo\ndescription: "' + scalar + '"\n---\n').encode()
+                p.validate_skill(quoted, 'demo')
+
+    def test_skillhub_nonobject_response_is_uncertain_and_channels_continue(self):
+        self.data['platforms']['skillhub'] = {'license': 'MIT'}
+        self.save()
+        release = self.build()
+        for response in ([], None):
+            status = p.read_json(release / 'status.json')
+            status['platforms']['skillhub'] = {'state': 'prepared'}
+            p.atomic_json(release / 'status.json', status)
+            with patch.object(p, 'credentials_env', return_value={'SKILLHUB_TOKEN': 'skh_fixture'}), patch.object(p.SkillHub, 'authenticate'), patch.object(p.SkillHub, 'submit', return_value=response):
+                with self.assertRaises(p.PublishError):
+                    p.publish(release, ['skillhub', 'workbuddy'], True)
+            status = p.read_json(release / 'status.json')['platforms']
+            self.assertEqual(status['skillhub']['state'], 'uncertain')
+            self.assertEqual(status['workbuddy']['portal'], p.PORTALS['workbuddy'])
+            with patch.object(p.SkillHub, 'request', return_value=response):
+                with self.assertRaises(p.PublishError):
+                    p.SkillHub('skh_fixture').authenticate()
+
     def test_channels_continue_after_failure(self):
         release = self.build()
         with patch.object(p, 'publish_github', side_effect=p.PublishError('failed')):

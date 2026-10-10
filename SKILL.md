@@ -3,7 +3,7 @@ name: skill-publisher
 description: Package an Agent Skill once for GitHub, Gitee, WorkBuddy and Qianwen, with optional Tencent SkillHub community submission; publish verified release assets or assist marketplace submission. Use when preparing or distributing a skill across these channels.
 ---
 
-Use `scripts/publish.py` with Python 3.9 or newer. Resolve this script relative to this skill directory, not the user's current project.
+Use `scripts/publish.py` with Python 3.9 or newer. Resolve this script relative to this skill directory, not the user's current project. Basic use needs only the standard library; complex YAML frontmatter requires PyYAML.
 
 Read [configuration](references/config.md) to prepare a source profile. Read [platform instructions](references/platforms.md) for the selected destinations. Keep account credentials in environment variables or the GitHub CLI login.
 

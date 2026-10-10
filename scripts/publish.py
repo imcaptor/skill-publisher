@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Build immutable skill releases and publish their verified assets."""
 import argparse
 import fnmatch
 import hashlib
@@ -172,10 +171,49 @@ def frontmatter(content):
         end = lines.index('---', 1)
     except ValueError as exc:
         raise PublishError('SKILL.md frontmatter is not closed') from exc
-    return lines[1:end], '\n'.join(lines[end + 1:]).lstrip('\n') + '\n'
+    fields = lines[1:end]
+    try:
+        import yaml
+    except ImportError:
+        parsed = {}
+        for line in fields:
+            if not line.strip() or line.lstrip().startswith('#'):
+                continue
+            match = re.fullmatch(r'([A-Za-z_][A-Za-z0-9_-]*):\s*(.+)', line)
+            if not match:
+                raise PublishError('Complex YAML frontmatter requires PyYAML; use flat scalar or JSON fields without it')
+            key, value = match.groups()
+            if key in parsed:
+                raise PublishError('Duplicate SKILL.md field: ' + key)
+            try:
+                if value.startswith(('"', '[', '{')):
+                    value = json.loads(value)
+                elif value.startswith("'"):
+                    if not re.fullmatch(r"'(?:[^']|'')*'", value):
+                        raise ValueError()
+                    value = value[1:-1].replace("''", "'")
+                elif (re.search(r':(?:\s|$)|\s#', value) or value[0] in '|>&*!%@`#,]}'
+                      or re.match(r'^[?:-](?:\s|$)', value)
+                      or value.strip().lower() in ('yes', 'no', 'on', 'off', 'true', 'false', 'null', '~', '.inf', '+.inf', '-.inf', '.nan')
+                      or re.match(r'^[+\-]?(?:[0-9]|\.[0-9])', value)):
+                    raise ValueError()
+            except ValueError as exc:
+                raise PublishError('Invalid or unsupported YAML scalar in SKILL.md: ' + key) from exc
+            parsed[key] = value
+    else:
+        try:
+            parsed = yaml.safe_load('\n'.join(fields))
+        except yaml.YAMLError as exc:
+            raise PublishError('Invalid YAML frontmatter in SKILL.md') from exc
+    if not isinstance(parsed, dict):
+        raise PublishError('SKILL.md frontmatter must be a mapping')
+    return fields, '\n'.join(lines[end + 1:]).lstrip('\n') + '\n', parsed
 
 def validate_skill(content, expected_name):
-    lines, _ = frontmatter(content)
+    lines, _, parsed = frontmatter(content)
+    for key in ('name', 'description'):
+        if not isinstance(parsed.get(key), str) or not parsed[key].strip():
+            raise PublishError('SKILL.md ' + key + ' must be a nonempty string')
     required = {}
     for line in lines:
         match = re.match(r'^(name|description):\s*(.*)$', line)
@@ -202,7 +240,7 @@ def validate_skill(content, expected_name):
         raise PublishError('metadata.name must match SKILL.md name')
 
 def replace_frontmatter(content, metadata):
-    old, body = frontmatter(content)
+    old, body, _ = frontmatter(content)
     keys = tuple(metadata)
     kept, skipping = [], False
     for line in old:
@@ -322,7 +360,6 @@ def run_gh(args):
     except FileNotFoundError as exc:
         raise PublishError('Install gh and sign in with gh auth login') from exc
     if result.returncode:
-        # gh output may contain tokens or user-sensitive response bodies.
         raise PublishError('GitHub CLI request failed; check authentication, repository and release permissions')
     return result.stdout
 
@@ -463,7 +500,7 @@ class SkillHub:
 
     def authenticate(self):
         result = self.request('/api/v1/auth/me')
-        if not isinstance(result.get('user'), dict) or not result['user'].get('id'):
+        if not isinstance(result, dict) or not isinstance(result.get('user'), dict) or not result['user'].get('id'):
             raise PublishError('SkillHub identity could not be verified')
 
     def submit(self, payload, files):
@@ -506,7 +543,7 @@ def publish_skillhub(release, manifest, status):
     atomic_json(release / 'status.json', status)
     try:
         result = client.submit(payload, files)
-        if not result.get('skillId') or not isinstance(result.get('status'), str):
+        if not isinstance(result, dict) or not result.get('skillId') or not isinstance(result.get('status'), str):
             raise PublishError('SkillHub submission response is incomplete')
         receipt = {key: result[key] for key in ('skillId', 'status', 'publicUrl') if key in result}
         status['platforms']['skillhub'] = {'state': 'published' if result['status'] == 'published' else 'submitted', 'receipt': receipt, 'remote_status': result['status']}
@@ -580,7 +617,7 @@ def init(path):
     return str(path.resolve())
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description='Build immutable skill releases and publish their verified assets.')
     commands = parser.add_subparsers(dest='command', required=True)
     initial = commands.add_parser('init')
     initial.add_argument('--config', default='publish.json')
@@ -613,7 +650,6 @@ def main():
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     except (PublishError, OSError, KeyError, TypeError, ValueError, zipfile.BadZipFile):
-        # Never print exceptions containing request URLs, credentials or file content.
         exc = sys.exc_info()[1]
         print('Error: ' + (str(exc) if isinstance(exc, PublishError) else 'Invalid input or filesystem operation failed'), file=sys.stderr)
         return 1
