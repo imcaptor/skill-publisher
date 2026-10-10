@@ -74,6 +74,47 @@ class ReleaseTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('increment version', result.stderr)
 
+    def test_skillhub_extensionless_license_preserves_content_and_other_packages(self):
+        for license_name in ('LICENSE', 'legal/COPYING'):
+            with self.subTest(license=license_name):
+                license_file = self.source / license_name
+                license_file.parent.mkdir(parents=True, exist_ok=True)
+                content = b'License text\r\nCopyright \xc2\xa9 fixture\n'
+                license_file.write_bytes(content)
+                self.data['license'] = license_name
+                self.data['metadata']['version'] = '1.0.' + str(len(license_name))
+                self.save()
+                before = {str(path.relative_to(self.source)): path.read_bytes() for path in self.source.rglob('*') if path.is_file()}
+                release = self.build()
+                with zipfile.ZipFile(release / 'skillhub.zip') as archive:
+                    self.assertNotIn(license_name, archive.namelist())
+                    self.assertEqual(archive.read(license_name + '.md'), content)
+                for package in ('skill.zip', 'source.zip', 'qianwen.zip', 'workbuddy.zip'):
+                    with zipfile.ZipFile(release / package) as archive:
+                        prefix = 'demo/' if package == 'workbuddy.zip' else ''
+                        self.assertEqual(archive.read(prefix + license_name), content)
+                        self.assertNotIn(prefix + license_name + '.md', archive.namelist())
+                manifest = p.verify_release(release)
+                self.assertEqual(set(manifest['files']), set(before))
+                self.assertEqual(manifest['license'], license_name)
+                self.assertEqual(manifest['files'][license_name], p.digest(content))
+                after = {str(path.relative_to(self.source)): path.read_bytes() for path in self.source.rglob('*') if path.is_file()}
+                self.assertEqual(before, after)
+
+    def test_skillhub_license_filename_collision(self):
+        content = (self.source / 'LICENSE').read_bytes()
+        (self.source / 'LICENSE.md').write_bytes(content + b'Different license')
+        result = self.cli('build', '--config', str(self.config))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('LICENSE.md', result.stderr)
+        self.assertFalse((self.root / 'dist/demo/1.0.0').exists())
+        (self.source / 'LICENSE.md').write_bytes(content)
+        release = self.build()
+        with zipfile.ZipFile(release / 'skillhub.zip') as archive:
+            self.assertNotIn('LICENSE', archive.namelist())
+            self.assertEqual(archive.namelist().count('LICENSE.md'), 1)
+            self.assertEqual(archive.read('LICENSE.md'), content)
+
     def test_symlink_and_output_escape_refused(self):
         (self.source / 'secret').symlink_to(self.root / 'outside')
         result = self.cli('build', '--config', str(self.config))
