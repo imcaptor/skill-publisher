@@ -210,6 +210,52 @@ class ReleaseTests(unittest.TestCase):
                 with self.assertRaises(p.PublishError):
                     p.SkillHub('skh_fixture').authenticate()
 
+    def test_skillhub_current_receipt_is_submitted_and_prevents_resubmission(self):
+        self.data['platforms']['skillhub'] = {'license': 'MIT'}
+        self.save()
+        release = self.build()
+        response = {'skillId': 274328, 'ok': True, 'reviewStatus': 'fixture-review',
+                    'securityScanStatus': 'fixture-complete', 'contentAuditStatus': 'fixture-complete',
+                    'iconAuditStatus': 'fixture-complete', 'iconAuditTaskStatus': 'fixture-complete'}
+        with patch.object(p, 'credentials_env', return_value={'SKILLHUB_TOKEN': 'skh_fixture'}), patch.object(p.SkillHub, 'authenticate'), patch.object(p.SkillHub, 'submit', return_value=response) as submit:
+            p.publish(release, ['skillhub'], True)
+            status = p.read_json(release / 'status.json')['platforms']['skillhub']
+            self.assertEqual(status['state'], 'submitted')
+            self.assertEqual(status['receipt'], response)
+            self.assertEqual(status['remote_status'], 'fixture-review')
+            with self.assertRaises(p.PublishError):
+                p.publish(release, ['skillhub'], True)
+            self.assertEqual(submit.call_count, 1)
+
+    def test_skillhub_incomplete_or_rejected_receipts_remain_uncertain(self):
+        self.data['platforms']['skillhub'] = {'license': 'MIT'}
+        self.save()
+        release = self.build()
+        responses = [
+            {'skillId': 274328, 'ok': False, 'reviewStatus': 'fixture-review'},
+            {'skillId': 274328, 'ok': False, 'status': 'published'},
+            {'skillId': 274328, 'reviewStatus': 'fixture-review'},
+            {'ok': True, 'reviewStatus': 'fixture-review'},
+            {'skillId': 274328, 'ok': True},
+            {'skillId': 274328, 'ok': True, 'reviewStatus': ''},
+            {'skillId': 274328, 'ok': 'true', 'reviewStatus': 'fixture-review'},
+            {'skillId': [], 'ok': True, 'reviewStatus': 'fixture-review'},
+            {'skillId': True, 'ok': True, 'reviewStatus': 'fixture-review'},
+            {'skillId': 274328, 'ok': True, 'reviewStatus': []},
+            {'skillId': 274328, 'ok': True, 'reviewStatus': 'fixture-review', 'securityScanStatus': []},
+        ]
+        for response in responses:
+            with self.subTest(response=response):
+                status = p.read_json(release / 'status.json')
+                status['platforms']['skillhub'] = {'state': 'prepared'}
+                p.atomic_json(release / 'status.json', status)
+                with patch.object(p, 'credentials_env', return_value={'SKILLHUB_TOKEN': 'skh_fixture'}), patch.object(p.SkillHub, 'authenticate'), patch.object(p.SkillHub, 'submit', return_value=response):
+                    with self.assertRaises(p.PublishError):
+                        p.publish(release, ['skillhub', 'workbuddy'], True)
+                status = p.read_json(release / 'status.json')['platforms']
+                self.assertEqual(status['skillhub']['state'], 'uncertain')
+                self.assertEqual(status['workbuddy']['state'], 'prepared')
+
     def test_channels_continue_after_failure(self):
         release = self.build()
         with patch.object(p, 'publish_github', side_effect=p.PublishError('failed')):
